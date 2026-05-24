@@ -33,6 +33,16 @@ def load_data():
 df_players = load_data()
 
 # =========================================================
+# FIX PLAYER IDs
+# =========================================================
+
+df_players["Player_League_ID"] = (
+    df_players["Player_League_ID"]
+    .astype(str)
+    .str.strip()
+)
+
+# =========================================================
 # LIMPIAR COLUMNAS DE PERCENTILES
 # =========================================================
 
@@ -84,7 +94,9 @@ player_id = st.selectbox(
 # SAFE LOOKUP (EVITA ERROR .iloc[0])
 # =========================================================
 
-player_df = df_players[df_players["Player_League_ID"] == player_id]
+player_df = df_players[
+    df_players["Player_League_ID"].astype(str) == str(player_id)
+]
 
 if player_df.empty:
     st.error("Jugador no encontrado en el dataset actual")
