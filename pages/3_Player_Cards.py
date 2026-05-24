@@ -94,8 +94,9 @@ player_id = st.selectbox(
 # SAFE LOOKUP (EVITA ERROR .iloc[0])
 # =========================================================
 
-player_df = df_players[
-    df_players["Player_League_ID"].astype(str) == str(player_id)
+player_df = df_players.loc[
+    df_players["Player_League_ID"].astype(str).str.strip()
+    == str(player_id).strip()
 ]
 
 if player_df.empty:
