@@ -183,7 +183,7 @@ st.write("Shape final:", df_filtered.shape)
 # CONTROL AUTOMÁTICO DE TAMAÑO
 # =========================================================
 
-MAX_ROWS = 15000
+MAX_ROWS = 10000
 
 if len(df_filtered) > MAX_ROWS:
 
