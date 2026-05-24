@@ -27,13 +27,8 @@ if not st.session_state.get("auth", False):
 
 @st.cache_data
 def load_data():
-
-    url = "https://docs.google.com/spreadsheets/d/1BaMavjirF82EDqo0nQz1rpGC8O4fUsGh/export?format=xlsx"
-
-    df = pd.read_excel(url, engine="openpyxl")
-    
+    df = pd.read_excel("df_players_sublevel.xlsx", engine="openpyxl")
     return df
-
 
 df_players = load_data()
 
