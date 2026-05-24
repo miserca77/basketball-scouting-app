@@ -37,6 +37,32 @@ df_players = load_data()
 
 
 # =========================================================
+# LIMPIAR COLUMNAS DE PERCENTILES
+# =========================================================
+
+pct_cols = [
+
+    c for c in df_players.columns
+
+    if (
+        c.endswith("_pct_league")
+        or c.endswith("_pct_sublevel")
+    )
+]
+
+for col in pct_cols:
+
+    # convertir a numérico
+    df_players[col] = pd.to_numeric(
+        df_players[col],
+        errors="coerce"
+    )
+
+    # NaN -> 0
+    df_players[col] = df_players[col].fillna(0)
+
+
+# =========================================================
 # TITLE
 # =========================================================
 
@@ -152,6 +178,35 @@ if min_mpg > 0:
 
 
 st.write("Shape final:", df_filtered.shape)
+
+# =========================================================
+# CONTROL AUTOMÁTICO DE TAMAÑO
+# =========================================================
+
+MAX_ROWS = 15000
+
+if len(df_filtered) > MAX_ROWS:
+
+    # primero elimina jugadores irrelevantes
+    df_filtered = df_filtered[
+        (df_filtered["MPG"] > 10) &
+        (df_filtered["GP"] > 15)
+    ]
+
+    # si todavía sigue siendo enorme
+    if len(df_filtered) > MAX_ROWS:
+
+        df_filtered = (
+            df_filtered
+            .sort_values("PER", ascending=False)
+            .head(MAX_ROWS)
+        )
+
+    st.info(
+        f"⚠️ Dataset demasiado grande. "
+        f"Se limita automáticamente a {MAX_ROWS} jugadores "
+        f"(mínimo 10 MPG, 15 GP y mejor PER)."
+    )
 
 
 # =========================================================

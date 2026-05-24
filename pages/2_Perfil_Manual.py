@@ -32,6 +32,31 @@ def load_data():
 
 df_players = load_data()
 
+# =========================================================
+# LIMPIAR COLUMNAS DE PERCENTILES
+# =========================================================
+
+pct_cols = [
+
+    c for c in df_players.columns
+
+    if (
+        c.endswith("_pct_league")
+        or c.endswith("_pct_sublevel")
+    )
+]
+
+for col in pct_cols:
+
+    # convertir a numérico
+    df_players[col] = pd.to_numeric(
+        df_players[col],
+        errors="coerce"
+    )
+
+    # NaN -> 0
+    df_players[col] = df_players[col].fillna(0)
+
 
 # =========================================================
 # TITLE

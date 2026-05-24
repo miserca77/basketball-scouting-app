@@ -35,12 +35,43 @@ def load_data():
 df_players = load_data()
 
 # =========================================================
-# CLEAN NUMERIC (EVITA ERRORES STR/NO_DATA)
+# LIMPIAR COLUMNAS DE PERCENTILES
+# =========================================================
+
+pct_cols = [
+
+    c for c in df_players.columns
+
+    if (
+        c.endswith("_pct_league")
+        or c.endswith("_pct_sublevel")
+    )
+]
+
+for col in pct_cols:
+
+    # convertir a numérico
+    df_players[col] = pd.to_numeric(
+        df_players[col],
+        errors="coerce"
+    )
+
+    # NaN -> 0
+    df_players[col] = df_players[col].fillna(0)
+
+
+# =========================================================
+# CLEAN NUMERIC COLUMNS ONLY
 # =========================================================
 
 for col in df_players.columns:
-    if df_players[col].dtype == "object":
-        df_players[col] = pd.to_numeric(df_players[col], errors="coerce")
+
+    if df_players[col].dtype != "object":
+
+        df_players[col] = pd.to_numeric(
+            df_players[col],
+            errors="coerce"
+        )
         
 # =========================================================
 # SELECT PLAYER
@@ -48,10 +79,20 @@ for col in df_players.columns:
 
 player_id = st.selectbox(
     "Selecciona jugador",
-    sorted(df_players["Player_League_ID"].unique())
+    sorted(df_players["Player_League_ID"].dropna().unique())
 )
 
-player = df_players[df_players["Player_League_ID"] == player_id].iloc[0]
+# =========================================================
+# SAFE LOOKUP (EVITA ERROR .iloc[0])
+# =========================================================
+
+player_df = df_players[df_players["Player_League_ID"] == player_id]
+
+if player_df.empty:
+    st.error("Jugador no encontrado en el dataset actual")
+    st.stop()
+
+player = player_df.iloc[0]
 
 # =========================================================
 # PCT COLUMNS
