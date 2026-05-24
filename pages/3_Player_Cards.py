@@ -40,8 +40,8 @@ df_players = load_data()
 
 for col in df_players.columns:
     if df_players[col].dtype == "object":
-        df_players[col] = pd.to_numeric(df_players[col], errors="ignore")
-
+        df_players[col] = pd.to_numeric(df_players[col], errors="coerce")
+        
 # =========================================================
 # SELECT PLAYER
 # =========================================================
