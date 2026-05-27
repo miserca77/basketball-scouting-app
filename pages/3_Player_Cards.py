@@ -33,23 +33,38 @@ def load_data():
 df_players = load_data()
 
 # =========================================================
-# CLEAN NUMERIC (EVITA ERRORES STR/NO_DATA)
+# CLEAN NUMERIC (EVITA ELIMINAR COLUMNAS DE TEXTO IMPORTANTES)
 # =========================================================
 
+columnas_texto_seguras = ["Player_League_ID", "Player", "Position", "League", "Team_Name", "Nationality", "Birth Date"]
+
 for col in df_players.columns:
-    if df_players[col].dtype == "object":
-        df_players[col] = pd.to_numeric(df_players[col], errors="coerce")
+    if col not in columnas_texto_seguras:
+        if df_players[col].dtype == "object":
+            df_players[col] = pd.to_numeric(df_players[col], errors="coerce")
         
 # =========================================================
 # SELECT PLAYER
 # =========================================================
 
+ids_disponibles = sorted(df_players["Player_League_ID"].dropna().unique())
+
+if not ids_disponibles:
+    st.error("❌ No se encontraron IDs de jugadores válidos en el archivo Excel.")
+    st.stop()
+
 player_id = st.selectbox(
     "Selecciona jugador",
-    sorted(df_players["Player_League_ID"].unique())
+    ids_disponibles
 )
 
-player = df_players[df_players["Player_League_ID"] == player_id].iloc[0]
+filtered_df = df_players[df_players["Player_League_ID"] == player_id]
+
+if filtered_df.empty:
+    st.error(f"❌ No se encontraron datos para el ID: {player_id}")
+    st.stop()
+else:
+    player = filtered_df.iloc[0]
 
 # =========================================================
 # PCT COLUMNS
@@ -210,7 +225,7 @@ radar_metrics = [m for m in radar_metrics if m in df_players.columns]
 compare_players = st.multiselect(
     "Selecciona hasta 5 jugadores para comparar",
     options=[
-        p for p in sorted(df_players["Player_League_ID"].unique())
+        p for p in sorted(df_players["Player_League_ID"].dropna().unique())
         if p != player_id
     ],
     max_selections=5
@@ -250,10 +265,10 @@ if len(radar_metrics) >= 3:
     # =====================================================
 
     for pid in compare_players:
-
-        p = df_players[
-            df_players["Player_League_ID"] == pid
-        ].iloc[0]
+        p_df = df_players[df_players["Player_League_ID"] == pid]
+        if p_df.empty:
+            continue
+        p = p_df.iloc[0]
 
         vals = []
 
@@ -290,7 +305,7 @@ if len(radar_metrics) >= 3:
 
     
 # =========================================================
-# PLAYER EVOLUTION (FINAL UX CONTROL TOTAL)
+# PLAYER EVOLUTION (AQUÍ ESTÁ TU BLOQUE SUSTITUIDO)
 # =========================================================
 
 st.subheader("📈 Player Evolution")
@@ -309,7 +324,7 @@ base_players = sorted(df_players["Player"].dropna().unique())
 selected_base_players = st.multiselect(
     "Selecciona jugadores",
     base_players,
-    default=[player["Player"]]
+    default=[player["Player"]] if pd.notna(player["Player"]) else []
 )
 
 # =====================================================
@@ -322,13 +337,10 @@ for bp in selected_base_players:
 
     st.markdown(f"### 👤 {bp}")
 
-    df_subset = df_players[
-        df_players["Player_League_ID"]
-        .astype(str)
-        .str.startswith(bp)
-    ].copy()
+    df_subset = df_players[df_players["Player"] == bp].copy()
 
     if df_subset.empty:
+        st.warning(f"No se encontraron registros para {bp}")
         continue
 
     options = df_subset["Player_League_ID"].tolist()
@@ -347,6 +359,7 @@ for bp in selected_base_players:
 # =====================================================
 
 fig_line = go.Figure()
+has_data_to_plot = False 
 
 for bp, ids in selected_data.items():
 
@@ -366,10 +379,12 @@ for bp, ids in selected_data.items():
 
     df_hist = df_hist.dropna(subset=["año_ref", evolution_metric])
 
-    # IMPORTANT: ORDER BY YEAR ONLY
+    if df_hist.empty:
+        continue
+
     df_hist = df_hist.sort_values("año_ref")
 
-    player_name = df_hist["Player"].iloc[0] if "Player" in df_hist.columns else bp
+    player_name = df_hist["Player"].iloc[0] if ("Player" in df_hist.columns and len(df_hist) > 0) else bp
 
     fig_line.add_trace(go.Scatter(
         x=df_hist["año_ref"],
@@ -379,19 +394,23 @@ for bp, ids in selected_data.items():
         text=df_hist["Player_League_ID"],
         hovertemplate="<b>%{text}</b><br>Año: %{x}<br>Valor: %{y}<extra></extra>"
     ))
+    has_data_to_plot = True
 
-fig_line.update_layout(
-    xaxis=dict(
-        title="Año",
-        tickmode="linear",
-        dtick=1
-    ),
-    yaxis_title=evolution_metric,
-    height=700,
-    hovermode="x unified"
-)
+if has_data_to_plot:
+    fig_line.update_layout(
+        xaxis=dict(
+            title="Año",
+            tickmode="linear",
+            dtick=1
+        ),
+        yaxis_title=evolution_metric,
+        height=700,
+        hovermode="x unified"
+    )
+    st.plotly_chart(fig_line, use_container_width=True)
+else:
+    st.info("No hay datos históricos suficientes para los años y métricas seleccionadas.")
 
-st.plotly_chart(fig_line, use_container_width=True)
 # =========================================================
 # SCOUTING REPORT SAFE (FIXED)
 # =========================================================
@@ -405,14 +424,11 @@ for col in pct_league_cols:
 
     if col in df_players.columns:
 
-        # 🔥 limpiar columna (evita strings tipo 'no_data')
         clean_col = pd.to_numeric(df_players[col], errors="coerce")
 
-        # si toda la columna es NaN, saltar
         if clean_col.notna().sum() == 0:
             continue
 
-        # calcular percentiles correctamente
         pct = clean_col.rank(pct=True)
 
         val = pct[df_players["Player_League_ID"] == player_id].values
@@ -422,7 +438,6 @@ for col in pct_league_cols:
 
         v = float(val[0])
 
-        # reglas scouting
         if v >= 0.75:
             strengths.append(col.replace("_pct_league", ""))
         elif v <= 0.35:
@@ -449,37 +464,20 @@ else:
     st.write("No major weaknesses detected")
 
 # =========================================================
-# PERFIL JUGADORES
-# =========================================================
-
-# =========================================================
 # ARCHETYPE SCORING ENGINE
 # =========================================================
 
 st.subheader("🧬 Archetypes")
 
-# =========================================================
-# HELPER
-# =========================================================
-
 def get_pct(col):
-
     if col in df_players.columns:
-
         val = pd.to_numeric(
             player[col],
             errors="coerce"
         )
-
         if pd.notna(val):
             return float(val)
-
     return 0
-
-
-# =========================================================
-# EXTRAER PERCENTILES
-# =========================================================
 
 usg = get_pct("USG%_pct_league")
 ast = get_pct("AST%_pct_league")
@@ -493,148 +491,31 @@ tov = get_pct("TOV%_pct_league")
 ortg = get_pct("ORtg_pct_league")
 per = get_pct("PER_pct_league")
 
-
-# =========================================================
-# ARCHETYPE SCORES
-# =========================================================
-
 archetype_scores = {
-
-    # =====================================================
-    # OFFENSIVE CREATORS
-    # =====================================================
-
-    "🎯 Shot Creator":
-        (
-            0.40 * usg +
-            0.30 * ast +
-            0.30 * ts
-        ),
-
-    "🧠 Floor General":
-        (
-            0.60 * ast +
-            0.25 * ortg +
-            0.15 * (100 - tov)
-        ),
-
-    "🏀 Combo Guard":
-        (
-            0.45 * ast +
-            0.45 * usg +
-            0.10 * ts
-        ),
-
-    "🎮 Secondary Playmaker":
-        (
-            0.50 * ast +
-            0.30 * ts +
-            0.20 * usg
-        ),
-
-    # =====================================================
-    # SCORERS
-    # =====================================================
-
-    "⚡ Slasher":
-        (
-            0.45 * usg +
-            0.35 * ts +
-            0.20 * per
-        ),
-
-    "🎯 Movement Shooter":
-        (
-            0.55 * efg +
-            0.25 * ts +
-            0.20 * usg
-        ),
-
-    "💥 Interior Finisher":
-        (
-            0.50 * orb +
-            0.30 * ts +
-            0.20 * per
-        ),
-
-    # =====================================================
-    # DEFENSIVE
-    # =====================================================
-
-    "🛡️ 3&D Wing":
-        (
-            0.40 * stl +
-            0.40 * efg +
-            0.20 * drb
-        ),
-
-    "🚫 Rim Protector":
-        (
-            0.65 * blk +
-            0.35 * drb
-        ),
-
-    "🛡️ Defensive Anchor":
-        (
-            0.50 * blk +
-            0.30 * drb +
-            0.20 * stl
-        ),
-
-    # =====================================================
-    # BIGS / HYBRIDS
-    # =====================================================
-
-    "🗼 Stretch Big":
-        (
-            0.45 * efg +
-            0.30 * blk +
-            0.25 * drb
-        ),
-
-    "🧬 Point Forward":
-        (
-            0.45 * ast +
-            0.35 * drb +
-            0.20 * usg
-        )
+    "🎯 Shot Creator": (0.40 * usg + 0.30 * ast + 0.30 * ts),
+    "🧠 Floor General": (0.60 * ast + 0.25 * ortg + 0.15 * (100 - tov)),
+    "🏀 Combo Guard": (0.45 * ast + 0.45 * usg + 0.10 * ts),
+    "🎮 Secondary Playmaker": (0.50 * ast + 0.30 * ts + 0.20 * usg),
+    "⚡ Slasher": (0.45 * usg + 0.35 * ts + 0.20 * per),
+    "🎯 Movement Shooter": (0.55 * efg + 0.25 * ts + 0.20 * usg),
+    "💥 Interior Finisher": (0.50 * orb + 0.30 * ts + 0.20 * per),
+    "🛡️ 3&D Wing": (0.40 * stl + 0.40 * efg + 0.20 * drb),
+    "🚫 Rim Protector": (0.65 * blk + 0.35 * drb),
+    "🛡️ Defensive Anchor": (0.50 * blk + 0.30 * drb + 0.20 * stl),
+    "🗼 Stretch Big": (0.45 * efg + 0.30 * blk + 0.25 * drb),
+    "🧬 Point Forward": (0.45 * ast + 0.35 * drb + 0.20 * usg)
 }
 
-
-# =========================================================
-# CONVERTIR A DATAFRAME
-# =========================================================
-
 df_arch = pd.DataFrame({
-
     "Archetype": archetype_scores.keys(),
     "Score": archetype_scores.values()
-
 })
 
-
-# =========================================================
-# ORDENAR
-# =========================================================
-
-df_arch = df_arch.sort_values(
-    by="Score",
-    ascending=False
-).reset_index(drop=True)
-
-
-# =========================================================
-# TOP 3
-# =========================================================
+df_arch = df_arch.sort_values(by="Score", ascending=False).reset_index(drop=True)
 
 primary = df_arch.iloc[0]
 secondary = df_arch.iloc[1]
 tertiary = df_arch.iloc[2]
-
-
-# =========================================================
-# MOSTRAR TOP ARCHETYPES (SMALL VERSION)
-# =========================================================
 
 st.markdown("""
 <style>
@@ -645,19 +526,16 @@ st.markdown("""
     text-align: center;
     margin-bottom: 10px;
 }
-
 .small-title {
     font-size: 14px;
     color: #020617;
     margin-bottom: 5px;
 }
-
 .small-archetype {
     font-size: 18px;
     font-weight: bold;
     line-height: 1.2;
 }
-
 .small-score {
     font-size: 13px;
     color: #0F766E;
@@ -666,43 +544,23 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 col1, col2 = st.columns(2)
-
 with col1:
-
     st.markdown(f"""
     <div class="small-metric">
         <div class="small-title">Primary</div>
-        <div class="small-archetype">
-            {primary["Archetype"]}
-        </div>
-        <div class="small-score">
-            Score: {primary["Score"]:.1f}
-        </div>
+        <div class="small-archetype">{primary["Archetype"]}</div>
+        <div class="small-score">Score: {primary["Score"]:.1f}</div>
     </div>
     """, unsafe_allow_html=True)
 
 with col2:
-
     st.markdown(f"""
     <div class="small-metric">
         <div class="small-title">Secondary</div>
-        <div class="small-archetype">
-            {secondary["Archetype"]}
-        </div>
-        <div class="small-score">
-            Score: {secondary["Score"]:.1f}
-        </div>
+        <div class="small-archetype">{secondary["Archetype"]}</div>
+        <div class="small-score">Score: {secondary["Score"]:.1f}</div>
     </div>
     """, unsafe_allow_html=True)
 
-
-# =========================================================
-# TABLA COMPLETA
-# =========================================================
-
 with st.expander("📊 View Full Archetype Scores"):
-
-    st.dataframe(
-        df_arch,
-        use_container_width=True
-    )
+    st.dataframe(df_arch, use_container_width=True)
