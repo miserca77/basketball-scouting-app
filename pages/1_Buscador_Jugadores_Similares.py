@@ -615,4 +615,3 @@ if "df_result" in st.session_state:
         mime="text/csv"
 
     )
-
