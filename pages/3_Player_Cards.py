@@ -36,7 +36,7 @@ df_players = load_data()
 # CLEAN NUMERIC (EVITA ELIMINAR COLUMNAS DE TEXTO IMPORTANTES)
 # =========================================================
 
-columnas_texto_seguras = ["Player_League_ID", "Player", "Position", "League", "Team_Name", "Nationality", "Birth Date"]
+columnas_texto_seguras = ["Player_League_ID", "Player", "Position", "League", "Team_Name", "Nationality", "Birth Date", "HT"]
 
 for col in df_players.columns:
     if col not in columnas_texto_seguras:
@@ -138,8 +138,8 @@ with col1:
         "League": ["League"],
         "Team": ["Team_Name"],
         "Age": ["Age"],
-        "Height (cm)": ["HT"],
-        "Weight (kg)": ["WT"],
+        "Height (in)": ["HT"],
+        "Weight (lbs)": ["WT"],
         "GP": ["GP"],
         "MPG": ["MPG"],
         "Nationality": ["Nationality"],
