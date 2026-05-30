@@ -185,10 +185,13 @@ with col2:
     if len(top_sub) > 0:
         cols = st.columns(min(5, len(top_sub)))
         for i, (name, val) in enumerate(top_sub):
-            cols[i].metric(
-                label=name.replace("_pct_sublevel", ""),
-                value=f"{val:.2f}%"
-            )
+            # Formateamos el texto de forma sencilla y compacta
+            label_clean = name.replace("_pct_sublevel", "")
+            cols[i].markdown(f"""
+            **{label_clean}** <span style="font-size: 18px; font-weight: bold;">{val:.2f}%</span>
+            """, unsafe_allow_html=True)
+
+    st.markdown("---") # Una línea de separación limpia
 
     # ===================== LEAGUE =====================
     st.markdown("### 🌍 League")
@@ -197,11 +200,11 @@ with col2:
     if len(top_league) > 0:
         cols = st.columns(min(5, len(top_league)))
         for i, (name, val) in enumerate(top_league):
-            cols[i].metric(
-                label=name.replace("_pct_league", ""),
-                value=f"{val:.2f}%"
-            )
-
+            # Formateamos el texto de forma sencilla y compacta
+            label_clean = name.replace("_pct_league", "")
+            cols[i].markdown(f"""
+            **{label_clean}** <span style="font-size: 18px; font-weight: bold;">{val:.2f}%</span>
+            """, unsafe_allow_html=True)
 # =========================================================
 # RADAR COMPARISON
 # =========================================================
