@@ -36,9 +36,7 @@ df_players = load_data()
 # =========================================================
 
 pct_cols = [
-
     c for c in df_players.columns
-
     if (
         c.endswith("_pct_league")
         or c.endswith("_pct_sublevel")
@@ -46,13 +44,11 @@ pct_cols = [
 ]
 
 for col in pct_cols:
-
     # convertir a numérico
     df_players[col] = pd.to_numeric(
         df_players[col],
         errors="coerce"
     )
-
     # NaN -> 0
     df_players[col] = df_players[col].fillna(0)
 
@@ -81,7 +77,6 @@ ligas = st.multiselect(
 )
 
 if ligas:
-
     df_filtered = df_filtered[
         df_filtered["League"].isin(ligas)
     ]
@@ -92,14 +87,12 @@ if ligas:
 # =========================================================
 
 if "Sublevel" in df_players.columns:
-
     sublevels = st.multiselect(
         "Sublevel",
         sorted(df_filtered["Sublevel"].dropna().unique())
     )
 
     if sublevels:
-
         df_filtered = df_filtered[
             df_filtered["Sublevel"].isin(sublevels)
         ]
@@ -110,27 +103,70 @@ if "Sublevel" in df_players.columns:
 # =========================================================
 
 if "Position" in df_filtered.columns:
-
     posiciones = st.multiselect(
         "Position",
         sorted(df_filtered["Position"].dropna().unique())
     )
 
     if posiciones:
-
         df_filtered = df_filtered[
             df_filtered["Position"].isin(posiciones)
         ]
 
 
 # =========================================================
-# CONTROL VACÍO
+# AÑO
+# =========================================================
+
+if "año_ref" in df_filtered.columns:
+    usar_anio = st.checkbox("Filtrar por año")
+
+    if usar_anio:
+        anio = st.selectbox(
+            "Selecciona año",
+            sorted(df_filtered["año_ref"].dropna().unique())
+        )
+
+        df_filtered = df_filtered[
+            df_filtered["año_ref"] == anio
+        ]
+
+
+# =========================================================
+# GP / MPG (AÑADIDO COMO EN LA PÁGINA 1)
+# =========================================================
+
+st.subheader("📈 Filtro de rendimiento")
+
+min_gp = st.number_input(
+    "Mínimo partidos jugados (GP)",
+    min_value=0,
+    value=0
+)
+
+min_mpg = st.number_input(
+    "Mínimo minutos por partido (MPG)",
+    min_value=0.0,
+    value=0.0
+)
+
+if min_gp > 0:
+    df_filtered = df_filtered[
+        df_filtered["GP"] >= min_gp
+    ]
+
+if min_mpg > 0:
+    df_filtered = df_filtered[
+        df_filtered["MPG"] >= min_mpg
+    ]
+
+
+# =========================================================
+# CONTROL VACÍO (Seguridad para los cálculos numéricos)
 # =========================================================
 
 if df_filtered.shape[0] == 0:
-
-    st.warning("No hay jugadores con esos filtros")
-
+    st.warning("No hay jugadores con esos filtros. Por favor, cambia la configuración (ej. baja el mínimo de MPG o remueve restricciones).")
     st.stop()
 
 
@@ -170,23 +206,15 @@ st.subheader("✍️ Introduce valores manuales")
 perfil_manual = {}
 
 for m in metricas:
-
     media = float(df_filtered[m].mean())
-
     minimo = float(df_filtered[m].min())
-
     maximo = float(df_filtered[m].max())
 
     perfil_manual[m] = st.number_input(
-
         label=m,
-
         value=round(media, 2),
-
         min_value=minimo,
-
         max_value=maximo
-
     )
 
 
@@ -197,22 +225,20 @@ for m in metricas:
 if st.button("🔎 Buscar jugadores similares"):
 
     try:
-
         if len(metricas) == 0:
-
             st.error("Selecciona al menos una métrica")
-
             st.stop()
 
+        if df_filtered.shape[0] == 0:
+            st.error("❌ No se puede calcular la similitud porque no quedan filas en el dataset con los filtros actuales.")
+            st.stop()
 
         # =====================================================
         # MATRIZ
         # =====================================================
 
         X = df_filtered[metricas].values
-
         scaler = StandardScaler()
-
         X_std = scaler.fit_transform(X)
 
 
@@ -221,10 +247,8 @@ if st.button("🔎 Buscar jugadores similares"):
         # =====================================================
 
         perfil_vector = np.array([
-
             perfil_manual[m]
             for m in metricas
-
         ]).reshape(1, -1)
 
         perfil_std = scaler.transform(
@@ -237,14 +261,11 @@ if st.button("🔎 Buscar jugadores similares"):
         # =====================================================
 
         distancias = euclidean_distances(
-
             perfil_std,
             X_std
-
         )[0]
 
         df_resultado = df_filtered.copy()
-
         df_resultado["Distancia"] = distancias
 
         resultado = df_resultado.sort_values(
@@ -257,22 +278,17 @@ if st.button("🔎 Buscar jugadores similares"):
         # =====================================================
 
         columnas_mostrar = [
-
             "Player",
             "Player_League_ID"
-
         ]
 
         if "Position" in resultado.columns:
-
             columnas_mostrar.append("Position")
 
         if "League" in resultado.columns:
-
             columnas_mostrar.append("League")
 
         columnas_mostrar += metricas
-
         columnas_mostrar.append("Distancia")
 
         resultado_metricas = resultado[
@@ -285,18 +301,14 @@ if st.button("🔎 Buscar jugadores similares"):
         # =====================================================
 
         st.session_state["resultado_manual"] = resultado
-
         st.session_state[
             "resultado_metricas_manual"
         ] = resultado_metricas
-
         st.session_state[
             "metricas_manual"
         ] = metricas
 
-
     except Exception as e:
-
         st.error(f"Error: {e}")
 
 
@@ -309,11 +321,9 @@ if "resultado_manual" in st.session_state:
     resultado = st.session_state[
         "resultado_manual"
     ]
-
     resultado_metricas = st.session_state[
         "resultado_metricas_manual"
     ]
-
     metricas = st.session_state[
         "metricas_manual"
     ]
@@ -328,11 +338,8 @@ if "resultado_manual" in st.session_state:
     )
 
     st.dataframe(
-
         resultado_metricas.reset_index(drop=True),
-
         use_container_width=True
-
     )
 
 
@@ -343,11 +350,8 @@ if "resultado_manual" in st.session_state:
     st.subheader("📊 Datos completos")
 
     st.dataframe(
-
         resultado.reset_index(drop=True),
-
         use_container_width=True
-
     )
 
 
@@ -356,23 +360,16 @@ if "resultado_manual" in st.session_state:
     # =====================================================
 
     csv_full = resultado.to_csv(
-
         index=False,
         sep=";",
         decimal=","
-
     ).encode("utf-8")
 
     st.download_button(
-
         label="⬇️ Descargar datos completos",
-
         data=csv_full,
-
         file_name="perfil_manual_completo.csv",
-
         mime="text/csv"
-
     )
 
 
@@ -381,41 +378,28 @@ if "resultado_manual" in st.session_state:
     # =====================================================
 
     columnas_largas = [
-
         "Player_League_ID"
-
     ] + metricas
 
     df_largo = resultado[
         columnas_largas
     ].melt(
-
         id_vars=["Player_League_ID"],
-
         var_name="Metrica",
-
         value_name="Valor"
-
     )
 
     csv_largo = df_largo.to_csv(
-
         index=False,
         sep=";",
         decimal=","
-
     ).encode("utf-8")
 
     st.download_button(
-
         label="⬇️ Descargar formato largo",
-
         data=csv_largo,
-
         file_name="perfil_manual_long.csv",
-
         mime="text/csv"
-
     )
 
 
@@ -424,7 +408,6 @@ if "resultado_manual" in st.session_state:
     # =====================================================
 
     scaler_norm = MinMaxScaler()
-
     df_norm = resultado[
         ["Player_League_ID"] + metricas
     ].copy()
@@ -434,32 +417,20 @@ if "resultado_manual" in st.session_state:
     )
 
     df_norm_largo = df_norm.melt(
-
         id_vars=["Player_League_ID"],
-
         var_name="Metrica",
-
         value_name="Valor"
-
     )
 
     csv_norm = df_norm_largo.to_csv(
-
         index=False,
         sep=";",
         decimal=","
-
     ).encode("utf-8")
 
     st.download_button(
-
         label="📊 Descargar datos normalizados radar",
-
         data=csv_norm,
-
         file_name="perfil_manual_radar.csv",
-
         mime="text/csv"
-
     )
-
