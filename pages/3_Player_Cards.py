@@ -187,7 +187,7 @@ with col2:
         for i, (name, val) in enumerate(top_sub):
             cols[i].metric(
                 label=name.replace("_pct_sublevel", ""),
-                value=f"{val:.0f}%"
+                value=f"{val:.2f}%"
             )
 
     # ===================== LEAGUE =====================
@@ -199,7 +199,7 @@ with col2:
         for i, (name, val) in enumerate(top_league):
             cols[i].metric(
                 label=name.replace("_pct_league", ""),
-                value=f"{val:.0f}%"
+                value=f"{val:.2f}%"
             )
 
 # =========================================================
